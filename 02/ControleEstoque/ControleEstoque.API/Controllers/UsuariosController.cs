@@ -15,6 +15,112 @@ namespace ControleEstoque.API.Controllers
             _usuarioService = usuarioService;
         }
 
+        #region Registro
+
+        [HttpPost("registrar-cliente")]
+        public async Task<IActionResult> RegistrarCliente([FromBody] CriarClienteDto dto)
+        {
+            try
+            {
+                var novoCliente = await _usuarioService.RegistrarClienteAsync(dto);
+                return CreatedAtAction(nameof(ObterPorId), new { id = novoCliente.Id }, novoCliente);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("registrar-caixa")]
+        public async Task<IActionResult> RegistrarCaixa([FromBody] CriarCaixaDto dto)
+        {
+            try
+            {
+                var novoCaixa = await _usuarioService.RegistrarCaixaAsync(dto);
+                return CreatedAtAction(nameof(ObterPorId), new { id = novoCaixa.Id }, novoCaixa);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("registrar-gerente")]
+        public async Task<IActionResult> RegistrarGerente([FromBody] CriarGerenteDto dto)
+        {
+            try
+            {
+                var novoGerente = await _usuarioService.RegistrarGerenteAsync(dto);
+                return CreatedAtAction(nameof(ObterPorId), new { id = novoGerente.Id }, novoGerente);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        #endregion
+
+        #region Atualização
+
+        [HttpPut("atualizar-cliente")]
+        public async Task<IActionResult> AtualizarCliente([FromBody] AtualizarClienteDto dto)
+        {
+            try
+            {
+                await _usuarioService.AtualizarClienteAsync(dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("atualizar-caixa")]
+        public async Task<IActionResult> AtualizarCaixa([FromBody] AtualizarCaixaDto dto)
+        {
+            try
+            {
+                await _usuarioService.AtualizarCaixaAsync(dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("atualizar-gerente")]
+        public async Task<IActionResult> AtualizarGerente([FromBody] AtualizarGerenteDto dto)
+        {
+            try
+            {
+                await _usuarioService.AtualizarGerenteAsync(dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        #endregion
+
+        #region Consulta
+
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -22,26 +128,43 @@ namespace ControleEstoque.API.Controllers
             return Ok(usuarios);
         }
 
-        [HttpPost("registrar-cliente")]
-        public async Task<IActionResult> RegistrarCliente([FromBody] CriarClienteDto dto)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> ObterPorId(int id)
         {
-            var novoCliente = await _usuarioService.RegistrarClienteAsync(dto);
-            return Ok(novoCliente);
+            var usuario = await _usuarioService.ObterUsuarioPorIdAsync(id);
+            if (usuario == null) return NotFound();
+            return Ok(usuario);
         }
 
-        [HttpPost("registrar-caixa")]
-        public async Task<IActionResult> RegistrarCaixa([FromBody] CriarCaixaDto dto)
+        [HttpGet("email/{email}")]
+        public async Task<IActionResult> ObterPorEmail(string email)
         {
-            var novoCaixa = await _usuarioService.RegistrarCaixaAsync(dto);
-            return Ok(novoCaixa);
+            var usuario = await _usuarioService.ObterUsuarioPorEmailAsync(email);
+            if (usuario == null) return NotFound();
+            return Ok(usuario);
         }
 
-        [HttpPost("registrar-gerente")]
-        public async Task<IActionResult> RegistrarGerente([FromBody] CriarGerenteDto dto)
+        #endregion
+
+        #region Deleção
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
         {
-            var novoGerente = await _usuarioService.RegistrarGerenteAsync(dto);
-            return Ok(novoGerente);
+            try
+            {
+                await _usuarioService.RemoverUsuarioAsync(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
+
+        #endregion
+
+        #region Autenticação
 
         [HttpPost("autenticar")]
         public async Task<IActionResult> Autenticar([FromBody] LoginDto dto)
@@ -49,16 +172,17 @@ namespace ControleEstoque.API.Controllers
             try
             {
                 var usuario = await _usuarioService.AutenticarAsync(dto);
-
                 if (usuario == null)
-                    return Unauthorized(new { message = "Email ou senha incorretos"});                
+                    return Unauthorized(new { message = "Email ou senha incorretos." });
 
                 return Ok(usuario);
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message});
+                return BadRequest(new { message = ex.Message });
             }
         }
+
+        #endregion
     }
 }

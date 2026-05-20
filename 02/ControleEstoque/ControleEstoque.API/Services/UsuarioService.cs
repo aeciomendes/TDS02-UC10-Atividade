@@ -16,8 +16,14 @@ namespace ControleEstoque.API.Services
             _passwordService = passwordService;
         }
 
+        #region Registro
+
         public async Task<UsuarioDto> RegistrarClienteAsync(CriarClienteDto dto)
         {
+            var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email);
+            if (emailJaExiste)
+                throw new InvalidOperationException("Esse email já está cadastrado.");
+
             var cliente = new Cliente
             {
                 Nome = dto.Nome,
@@ -34,6 +40,10 @@ namespace ControleEstoque.API.Services
 
         public async Task<UsuarioDto> RegistrarCaixaAsync(CriarCaixaDto dto)
         {
+            var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email);
+            if (emailJaExiste)
+                throw new InvalidOperationException("Esse email já está cadastrado.");
+
             var caixa = new Caixa
             {
                 Nome = dto.Nome,
@@ -50,6 +60,10 @@ namespace ControleEstoque.API.Services
 
         public async Task<UsuarioDto> RegistrarGerenteAsync(CriarGerenteDto dto)
         {
+            var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email);
+            if (emailJaExiste)
+                throw new InvalidOperationException("Esse email já está cadastrado.");
+
             var gerente = new Gerente
             {
                 Nome = dto.Nome,
@@ -64,10 +78,102 @@ namespace ControleEstoque.API.Services
             return MapearParaDto(gerente);
         }
 
+        #endregion
+
+        #region Atualização
+
+        public async Task AtualizarClienteAsync(AtualizarClienteDto dto)
+        {
+            var cliente = await _context.Clientes.FindAsync(dto.Id);
+            if (cliente == null)
+                throw new KeyNotFoundException("Cliente não encontrado.");
+
+            // Verifica se o novo email já existe (se foi alterado)
+            if (cliente.Email != dto.Email)
+            {
+                var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email && u.Id != dto.Id);
+                if (emailJaExiste)
+                    throw new InvalidOperationException("Esse email já está cadastrado.");
+            }
+
+            cliente.Nome = dto.Nome;
+            cliente.Email = dto.Email;
+            cliente.CPF = dto.CPF;
+
+            // Atualiza senha apenas se fornecida
+            if (!string.IsNullOrEmpty(dto.Senha))
+                cliente.SenhaHash = _passwordService.HashPassword(dto.Senha);
+
+            _context.Clientes.Update(cliente);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task AtualizarCaixaAsync(AtualizarCaixaDto dto)
+        {
+            var caixa = await _context.Caixas.FindAsync(dto.Id);
+            if (caixa == null)
+                throw new KeyNotFoundException("Caixa não encontrado.");
+
+            // Verifica se o novo email já existe (se foi alterado)
+            if (caixa.Email != dto.Email)
+            {
+                var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email && u.Id != dto.Id);
+                if (emailJaExiste)
+                    throw new InvalidOperationException("Esse email já está cadastrado.");
+            }
+
+            caixa.Nome = dto.Nome;
+            caixa.Email = dto.Email;
+            caixa.Turno = dto.Turno;
+
+            // Atualiza senha apenas se fornecida
+            if (!string.IsNullOrEmpty(dto.Senha))
+                caixa.SenhaHash = _passwordService.HashPassword(dto.Senha);
+
+            _context.Caixas.Update(caixa);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task AtualizarGerenteAsync(AtualizarGerenteDto dto)
+        {
+            var gerente = await _context.Gerentes.FindAsync(dto.Id);
+            if (gerente == null)
+                throw new KeyNotFoundException("Gerente não encontrado.");
+
+            // Verifica se o novo email já existe (se foi alterado)
+            if (gerente.Email != dto.Email)
+            {
+                var emailJaExiste = await _context.Usuarios.AnyAsync(u => u.Email == dto.Email && u.Id != dto.Id);
+                if (emailJaExiste)
+                    throw new InvalidOperationException("Esse email já está cadastrado.");
+            }
+
+            gerente.Nome = dto.Nome;
+            gerente.Email = dto.Email;
+            gerente.Setor = dto.Setor;
+
+            // Atualiza senha apenas se fornecida
+            if (!string.IsNullOrEmpty(dto.Senha))
+                gerente.SenhaHash = _passwordService.HashPassword(dto.Senha);
+
+            _context.Gerentes.Update(gerente);
+            await _context.SaveChangesAsync();
+        }
+
+        #endregion
+
+        #region Consulta
+
         public async Task<IEnumerable<UsuarioDto>> ListarTodosUsuariosAsync()
         {
             var usuarios = await _context.Usuarios.AsNoTracking().ToListAsync();
             return usuarios.Select(MapearParaDto);
+        }
+
+        public async Task<UsuarioDto?> ObterUsuarioPorIdAsync(int id)
+        {
+            var usuario = await _context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            return usuario != null ? MapearParaDto(usuario) : null;
         }
 
         public async Task<UsuarioDto?> ObterUsuarioPorEmailAsync(string email)
@@ -76,64 +182,61 @@ namespace ControleEstoque.API.Services
             return usuario != null ? MapearParaDto(usuario) : null;
         }
 
+        #endregion
+
+        #region Deleção
+
+        public async Task RemoverUsuarioAsync(int id)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null)
+                throw new KeyNotFoundException("Usuário não encontrado.");
+
+            _context.Usuarios.Remove(usuario);
+            await _context.SaveChangesAsync();
+        }
+
+        #endregion
+
+        #region Autenticação
+
         public async Task<UsuarioDto?> AutenticarAsync(LoginDto dto)
         {
-            // buscar o usu�rio no banco pelo email
-            var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Email == dto.Email);
+            var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (usuario == null)
+                return null;
 
-            // se n�o encontrar, retornar 'null'
-            if(usuario == null) return null;
-
-            // verifico se a senha, confere com o que t� no banco
-            // se n�o estiver e acordo, retorna 'null'
+            // Verifica a senha
             if (!_passwordService.VerifyPassword(dto.Senha, usuario.SenhaHash))
                 return null;
 
-            // estando correto, retorna o dto do Usario
             return MapearParaDto(usuario);
         }
+
+        #endregion
+
+        #region Mapeador
 
         private static UsuarioDto MapearParaDto(Usuario usuario)
         {
             var dto = new UsuarioDto
             {
-                Id = usuario.Id, Nome = usuario.Nome, Email = usuario.Email, Perfil = usuario.Perfil.ToString()
+                Id = usuario.Id,
+                Nome = usuario.Nome,
+                Email = usuario.Email,
+                Perfil = usuario.Perfil.ToString()
             };
-            if (usuario is Cliente cliente) dto.CPF = cliente.CPF;
-            if (usuario is Caixa caixa) dto.Turno = caixa.Turno;
-            if (usuario is Gerente gerente) dto.Setor = gerente.Setor;
+
+            if (usuario is Cliente cliente)
+                dto.CPF = cliente.CPF;
+            else if (usuario is Caixa caixa)
+                dto.Turno = caixa.Turno;
+            else if (usuario is Gerente gerente)
+                dto.Setor = gerente.Setor;
+
             return dto;
         }
 
-        public async Task AtualizarClienteAsync(AtualizarClienteDto dto)
-        {
-            var cliente = await _context.Clientes
-                .FirstOrDefaultAsync(c => c.Id == dto.Id);
-
-            if (cliente == null) 
-                throw new KeyNotFoundException("Cliente n�o encontrado");
-
-            if (cliente.Email != dto.Email)
-            {
-                var emailJaExiste = await _context.Usuarios
-                    .AnyAsync(u => u.Email == dto.Email);
-
-                if (emailJaExiste) 
-                    throw new InvalidOperationException("Esse email j� est� cadastrado!");
-            }
-
-            // atualiza a senha, se foi fornecida
-            if(!string.IsNullOrEmpty(dto.Senha))
-                cliente.SenhaHash = _passwordService.HashPassword(dto.Senha);
-
-            cliente.Nome = dto.Nome;
-            cliente.Email = dto.Email;
-            cliente.CPF = dto.CPF;
-
-            // salva as mudan�as
-            _context.Clientes.Update(cliente);
-            await _context.SaveChangesAsync();            
-        }
+        #endregion
     }
 }

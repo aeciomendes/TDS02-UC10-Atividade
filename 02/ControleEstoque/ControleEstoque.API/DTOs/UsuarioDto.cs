@@ -18,6 +18,12 @@ namespace ControleEstoque.API.DTOs
         public string Nome { get; set; } = string.Empty;
     }
 
+    public class LoginDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Senha { get; set; } = string.Empty;
+    }
+
     public class CriarClienteDto
     {
         public string Nome { get; set; } = string.Empty;
@@ -43,6 +49,15 @@ namespace ControleEstoque.API.DTOs
         public string Turno { get; set; } = string.Empty;
     }
 
+    public class AtualizarCaixaDto
+    {
+        public int Id { get; set; }
+        public string Nome { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Senha { get; set; }
+        public string Turno { get; set; } = string.Empty;
+    }
+
     public class CriarGerenteDto
     {
         public string Nome { get; set; } = string.Empty;
@@ -51,9 +66,12 @@ namespace ControleEstoque.API.DTOs
         public string Setor { get; set; } = string.Empty;
     }
 
-    public class LoginDto
+    public class AtualizarGerenteDto
     {
+        public int Id { get; set; }
+        public string Nome { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public string Senha { get; set;} = string.Empty;
+        public string? Senha { get; set; }
+        public string Setor { get; set; } = string.Empty;
     }
 }
